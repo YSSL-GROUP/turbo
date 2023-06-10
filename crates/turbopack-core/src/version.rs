@@ -105,6 +105,16 @@ impl From<AssetContent> for Vc<Box<dyn VersionedContent>> {
     }
 }
 
+pub trait VersionedContentExt {
+    fn versioned(self: Vc<Self>) -> Vc<Box<dyn VersionedContent>>;
+}
+
+impl VersionedContentExt for AssetContent {
+    fn versioned(self: Vc<Self>) -> Vc<Box<dyn VersionedContent>> {
+        Vc::upcast(VersionedAssetContent::new(self))
+    }
+}
+
 /// Describes the current version of an object, and how to update them from an
 /// earlier version.
 #[turbo_tasks::value_trait]
