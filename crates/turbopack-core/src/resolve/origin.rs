@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{Upcast, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{options::ResolveOptions, parse::Request, ResolveResult};
@@ -43,17 +43,20 @@ pub trait ResolveOriginExt {
     fn resolve_options(self: Vc<Self>, reference_type: Value<ReferenceType>) -> Vc<ResolveOptions>;
 
     /// Adds a transition that is used for resolved assets.
-    fn with_transition(self: Vc<Self>, transition: String) -> Vc<Self>;
+    fn with_transition(self: Vc<Self>, transition: String) -> Vc<Box<dyn ResolveOrigin>>;
 }
 
-impl ResolveOriginExt for Box<dyn ResolveOrigin> {
+impl<T> ResolveOriginExt for T
+where
+    T: ResolveOrigin + Upcast<Box<dyn ResolveOrigin>>,
+{
     fn resolve_asset(
         self: Vc<Self>,
         request: Vc<Request>,
         options: Vc<ResolveOptions>,
         reference_type: Value<ReferenceType>,
     ) -> Vc<ResolveResult> {
-        resolve_asset(self, request, options, reference_type)
+        resolve_asset(Vc::upcast(self), request, options, reference_type)
     }
 
     fn resolve_options(self: Vc<Self>, reference_type: Value<ReferenceType>) -> Vc<ResolveOptions> {
@@ -61,10 +64,10 @@ impl ResolveOriginExt for Box<dyn ResolveOrigin> {
             .resolve_options(self.origin_path(), reference_type)
     }
 
-    fn with_transition(self: Vc<Self>, transition: String) -> Vc<Self> {
+    fn with_transition(self: Vc<Self>, transition: String) -> Vc<Box<dyn ResolveOrigin>> {
         Vc::upcast(
             ResolveOriginWithTransition {
-                previous: self,
+                previous: Vc::upcast(self),
                 transition: transition.to_string(),
             }
             .cell(),
